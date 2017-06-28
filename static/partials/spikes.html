@@ -1,0 +1,24 @@
+<div>
+  <div class="scatter-plot">
+    <spikes-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="spikes"
+      select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
+      xmin="-5.7" xmax="5.7" ymin="-5.4" ymax="5.6"></spikes-scatter>
+  </div>
+  <div>
+    <div ng-class="{hidden: !waveformsLoaded}">
+      <waveforms-chart data="currentlySelected" n-samples="32" width="600" height="400"
+        horiz-margin="20" vert-margin="10" loaded='waveformsLoaded'
+        xmin="0" xmax="32" ymin="-200" ymax="160"></waveforms-chart>
+    </div>
+    <div ng-class="{hidden: !!waveformsLoaded}">
+      <a>Loading spike waveforms...</a>
+    </div>
+  </div>
+</div>
+<div style="clear: both;">
+  <div style="float: left;" ng-repeat="group in groups">
+    <waveforms-chart ng-click="close(group)" use-canvas="true" data="group.data" n-samples="32" width="300" height="200"
+      horiz-margin="10" vert-margin="10" loaded='waveformsLoaded' closeCallback="group.close"
+      xmin="0" xmax="32" ymin="-200" ymax="160"></waveforms-chart>
+  </div>
+</div>

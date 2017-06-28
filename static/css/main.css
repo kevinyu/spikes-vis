@@ -1,0 +1,61 @@
+body {
+  font-family: Verdana, sans-serif;
+}
+
+ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #2d2d2d;
+}
+
+li {
+  float: left;
+}
+
+.nav-item {
+  display: block;
+  padding: 8px;
+  font-size: 20px;
+  line-height: 1.5;
+  color: white;
+}
+
+.radius {
+  fill-opacity: 0.1;
+  stroke: #111;
+  stroke-dasharray: 4 2;
+}
+
+.hidden {
+  display: none;
+}
+
+.scatter-plot {
+  float: left;
+}
+
+canvas {
+  position: absolute;
+}
+
+.scatter-svg {
+  pointer-events: none;
+}
+
+.line {
+  fill: none;
+  stroke: gray;
+  stroke-width: 2;
+  opacity: 0.1;
+}
+
+path {
+  fill: none;
+  stroke: #000;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+

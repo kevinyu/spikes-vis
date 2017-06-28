@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="theme-color" content="#000000">
+    <link rel="stylesheet" type="text/css" href="static/css/main.css">
+    <title>React App</title>
+  </head>
+  <body>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <div id="root" ng-app="App">
+      <div class="nav-bar">
+        <ul>
+          <li class="nav-item"><a>Spike Visualizer</a></li>
+        </ul>
+      </div>
+      <ng-view></ng-view>
+    </div>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.9.1/d3.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.1/angular.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.1/angular-route.js"></script>
+    <script src="../static/js/lib/numeric.js"></script>
+    <script src="../static/js/lib/math.js"></script>
+    <script src="../static/js/lib/ellipse-fit.js"></script>
+    <script>
+      var config = {};
+      config.DATASERVER = "{{ config['DATASERVER'] }}";
+    </script>
+    <script src="../static/js/app.js"></script>
+  </body>
+</html>
