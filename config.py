@@ -1,2 +1,3 @@
-PORT = 5050
-DATASERVER = "http://localhost:5000"
+PORT = 8080
+DATASERVER = "http://localhost:8080"
+DEBUG = False
