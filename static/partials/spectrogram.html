@@ -1,0 +1,22 @@
+
+<div>
+  <div class="scatter-plot">
+    <spikes-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="scatterData"
+      select-circle="selectCircle" select-ellipse="selectEllipse"
+      selected-groups="selectedGroups"
+      xmin="-20" xmax="20" ymin="-20" ymax="20"></spikes-scatter>
+  </div>
+</div>
+
+<div>
+  <input ng-model="idx" ng-keydown="onKeyUp($event)"/>
+  <heatmap-chart data="data" width="1000" height="1000"
+    horiz-margin="20" vert-margin="10"></heatmap-chart>
+</div>
+
+<div style="clear: both;">
+  <div style="float: left;" ng-repeat="group in groups">
+    <heatmap-chart data="group" width="300" height="200"
+      horiz-margin="10" vert-margin="10"></waveforms-chart>
+  </div>
+</div>

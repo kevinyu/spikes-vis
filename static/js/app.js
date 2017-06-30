@@ -1,5 +1,28 @@
 'use strict';
 
+function ellipseNearest(node, rx, ry, angle, hits) {
+  return function(quad, x1, y1, x2, y2) {
+    if (quad.data && (quad.data !== node)) {
+      var x = node.x - quad.data.x;
+      var y = node.y - quad.data.y;
+
+      if (
+        math.square(x * math.cos(angle) + y * math.sin(angle)) / math.square(rx) +
+        math.square(x * math.sin(angle) - y * math.cos(angle)) / math.square(ry) < 1
+      ) {
+        hits.push(quad.data);
+      }
+    }
+    return (
+      x1 > node.x + rx ||
+      x2 < node.x - rx ||
+      y1 > node.y + ry ||
+      y2 < node.y - ry
+    );
+  }
+}
+
+
 angular.module('App', [
   'ngRoute',
   'controllers',
@@ -9,11 +32,16 @@ angular.module('App', [
 .config([
   '$routeProvider',
   function($routeProvider) {
-    $routeProvider.when('/spikes', {
+    $routeProvider
+    .when('/spikes', {
       templateUrl: 'static/partials/spikes.html',
       controller: 'spikesController'
+    })
+    .when('/spectrogram', {
+      templateUrl: 'static/partials/spectrogram.html',
+      controller: 'spectrogramController'
     });
-    $routeProvider.otherwise({redirectTo: '/spikes'});
+    $routeProvider.otherwise({redirectTo: '/spectrogram'});
   }
 ]);
 
@@ -81,28 +109,6 @@ angular.module('controllers', [])
       $scope.$apply()
     }
 
-    function ellipseNearest(node, rx, ry, angle, hits) {
-      return function(quad, x1, y1, x2, y2) {
-        if (quad.data && (quad.data !== node)) {
-          var x = node.x - quad.data.x;
-          var y = node.y - quad.data.y;
-
-          if (
-            math.square(x * math.cos(angle) + y * math.sin(angle)) / math.square(rx) +
-            math.square(x * math.sin(angle) - y * math.cos(angle)) / math.square(ry) < 1
-          ) {
-            hits.push(quad.data);
-          }
-        }
-        return (
-          x1 > node.x + rx ||
-          x2 < node.x - rx ||
-          y1 > node.y + ry ||
-          y2 < node.y - ry
-        );
-      }
-    }
-
     // Select an entire ellipse and create a new plot of waveforms
     $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
       var hits = [];
@@ -122,10 +128,155 @@ angular.module('controllers', [])
       $scope.groups.splice(i, 1);
     }
   }
+])
+
+.controller('spectrogramController', [
+  '$scope',
+  '$http',
+  '$q',
+  function($scope, $http, $q) {
+    $scope.data = null;
+    $scope.scatterData = [];
+    $scope.idx = 0;
+    $scope.selectedGroups = [];
+
+    var quadtree = d3.quadtree()
+      .extent([[-30, 30], [-30, 30]])
+      .x(d => d.x)
+      .y(d => d.y);
+
+    var getSpecData = function() {
+      $http
+        .get(config.DATASERVER + '/spectrograms/' + $scope.idx)
+        .then(function(data) {
+          $scope.data = data.data.spectrogram;
+          return data;
+        });
+    };
+
+    var getScatterData = $http
+      .get(config.DATASERVER + '/spectrograms/scatter')
+      .then(function(data) {
+        // TODO fillin max and min
+        quadtree.addAll(data.data);
+        $scope.scatterData = data.data;
+        return data;
+      });
+
+    $scope.onKeyUp = function(evt) {
+      if (evt.keyCode === 40) {
+        --$scope.idx;
+      } else if (evt.keyCode === 38) {
+        ++$scope.idx;
+      }
+    }
+
+    $scope.$watch('idx', function() {
+      if ($scope.idx === 0 || !!$scope.idx) {
+        getSpecData();
+      }
+    });
+
+    $scope.selectCircle = function(x, y, r) {
+      var closest = quadtree.find(x, y);
+      if (!!closest) {
+        $scope.idx = closest.idx;
+      }
+      $scope.$apply()
+    }
+
+    var groupIdx = 0;
+    $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
+      $scope.selectedGroups = [{
+        idx: groupIdx,
+        data: hits,
+        center: data.center,
+        angle: data.angle,
+        axes: data.axes
+      }];
+      groupIdx++;
+
+      var hits = [];
+      quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
+      hits.splice(0, 30);
+      var results = hits.map(function() {
+        return $http
+          .get(config.DATASERVER + '/spectrograms/' + $scope.idx)
+          .then(function(data) {
+            return data.data.spectrogram;
+          });
+      })
+
+      $q.all(results).then(function(data) {
+        $scope.groups = [];
+        data.forEach(function(d, i) {
+          $scope.groups.push(d);
+        });
+      });
+      $scope.$apply();
+    }
+  }
 ]);
 
 
 angular.module('charts', [])
+
+.directive('heatmapChart', function() {
+  return {
+    restrict: 'E',
+    templateUrl: 'static/partials/heatmap_chart.html',
+    scope: {
+      data: '=',
+      nSamples: '@',
+      width: '@',
+      height: '@',
+      horizMargin: '@',
+      vertMargin: '@'
+    },
+    link: function(scope, element, attrs) {
+      var _canvas = element[0].querySelector('.real-canvas');
+      var canvas = d3.select(_canvas);
+      var context = _canvas.getContext('2d');
+
+      var dummyCanvas = element[0].querySelector('#dummy-canvas');
+      var dummyContext = dummyCanvas.getContext("2d");
+
+      var i0 = d3.interpolateHsvLong(d3.hsv(120, 1, 0.65), d3.hsv(60, 1, 0.90)),
+          i1 = d3.interpolateHsvLong(d3.hsv(60, 1, 0.90), d3.hsv(0, 0, 0.95)),
+          interpolateTerrain = function(t) { return t < 0.5 ? i0(t * 2) : i1((t - 0.5) * 2); };
+
+      function render(data) {
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        dummyContext.clearRect(0, 0, dummyContext.canvas.width, dummyContext.canvas.height);
+        var color = d3.scaleSequential(interpolateTerrain).domain([20, 80]);
+        var n = data[0].length;
+        var m = data.length;
+
+        var image = context.createImageData(n, m);
+        for (var i = m - 1, l = 0; i >= 0; --i) {
+          for (var j = 0; j < n; ++j, l += 4) {
+            var c = d3.rgb(color(data[i][j]));
+            image.data[l + 0] = c.g;
+            image.data[l + 1] = c.r;
+            image.data[l + 2] = c.b;
+            image.data[l + 3] = 255;
+          }
+        }
+        dummyContext.putImageData(image, 0, 0);
+        context.drawImage(dummyCanvas, 0, 0);
+      };
+
+      scope.$watchCollection(function() {
+        return scope.data;
+      }, function(data) {
+        if (!!data && !!data.length) {
+          render(data);
+        }
+      });
+    }
+  };
+})
+
 
 .directive('waveformsChart', function() {
   return {
@@ -337,7 +488,7 @@ angular.module('charts', [])
         .on('start', dragstarted));
 
       function dragstarted() {
-        if (!scope.data || (!!scope.data && !scope.data[0].waveform)) {
+        if (!scope.data) {
           return;
         }
         var d = d3.event.subject,
@@ -379,6 +530,9 @@ angular.module('charts', [])
       }
 
       scope.$watchCollection('selectedGroups', function(selectedGroups) {
+        if (!selectedGroups) {
+            return;
+        }
         var ellipses = lassos.selectAll('ellipse')
           .data(selectedGroups, d => d.idx);
 
