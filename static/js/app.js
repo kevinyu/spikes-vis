@@ -1,5 +1,6 @@
 'use strict';
 
+/* helper function to search d3.quadtree for points within an ellipse */
 function ellipseNearest(node, rx, ry, angle, hits) {
   return function(quad, x1, y1, x2, y2) {
     if (quad.data && (quad.data !== node)) {
@@ -20,6 +21,11 @@ function ellipseNearest(node, rx, ry, angle, hits) {
       y2 < node.y - ry
     );
   }
+}
+
+/* helper function to search d3.quadtree for points within a CIRCLE */
+function nearest(node, radius, hits) {
+  return ellipseNearest(node, radius, radius, 0, hits);
 }
 
 
@@ -53,33 +59,15 @@ angular.module('controllers', [])
   '$http',
   '$q',
   function($scope, $http, $q) {
-    $scope.waveformsLoaded = false;
-    $scope.groups = [];
-
     var quadtree = d3.quadtree()
       .extent([[-10, 10], [-10, 10]])
       .x(d => d.x)
       .y(d => d.y);
 
-    function nearest(node, radius, hits) {
-      return function(quad, x1, y1, x2, y2) {
-        if (quad.data && (quad.data !== node)) {
-          var x = node.x - quad.data.x;
-          var y = node.y - quad.data.y;
-          if (x * x + y * y < radius * radius) {
-            hits.push(quad.data);
-          }
-        }
-        return (
-          x1 > node.x + radius ||
-          x2 < node.x - radius ||
-          y1 > node.y + radius ||
-          y2 < node.y - radius
-        );
-      }
-    }
-
+    $scope.waveformsLoaded = false;
+    $scope.groups = [];
     $scope.spikes = [];
+
     var getSpikesData = $http
       .get(config.DATASERVER + '/scatter')
       .then(function(data) {
@@ -135,34 +123,65 @@ angular.module('controllers', [])
   '$http',
   '$q',
   function($scope, $http, $q) {
-    $scope.data = null;
-    $scope.scatterData = [];
-    $scope.idx = 0;
-    $scope.selectedGroups = [];
+    var loadedConfirmation;         // Promise that will be finished with server data loaded
+    var quadtree;
 
-    var quadtree = d3.quadtree()
-      .extent([[-30, 30], [-30, 30]])
-      .x(d => d.x)
-      .y(d => d.y);
+    $scope.data = null;             // Currently visualized spectrogram
+    $scope.scatterData = [];        // List of points to visualize in scatter plot
+    $scope.idx = 0;                 // Currently spectrogram index to visualize
+    $scope.datasetChoices = []      // Datasets available for visualization (can switch between them)
+    $scope.selectedDatasetIdx = 0;
+    $scope.loading = false;         // Loading flag (server will be slow when first loading spectrograms files)
 
+    // load up the options
+    $http.get('datasets/vocalizations').then(function(data) {
+      $scope.datasetChoices = data.data;
+      $scope.selectDataset(0);
+    });
+
+    // Change which dataset to visualize by index
+    $scope.selectDataset = function(idx) {
+        $scope.datasetName = $scope.datasetChoices[idx];
+        $scope.loading = true;
+        loadedConfirmation = $http.get('datasets/vocalizations/' + $scope.datasetName + '/spectrograms/load');
+        loadedConfirmation.then(() => $scope.loading = false);
+        getScatterData();
+    }
+
+    // Load a single spectrogram's data
     var getSpecData = function() {
-      $http
-        .get(config.DATASERVER + '/spectrograms/' + $scope.idx)
+      $http.get(config.DATASERVER
+            + '/datasets/vocalizations/'
+            + $scope.datasetName
+            + '/spectrograms/'
+            + $scope.idx)
         .then(function(data) {
           $scope.data = data.data.spectrogram;
           return data;
         });
     };
 
-    var getScatterData = $http
-      .get(config.DATASERVER + '/spectrograms/scatter')
-      .then(function(data) {
-        // TODO fillin max and min
-        quadtree.addAll(data.data);
-        $scope.scatterData = data.data;
-        return data;
+    // Load scatter plot 2d data for current dataset
+    var getScatterData = function() {
+      loadedConfirmation.then(function() {
+        $http.get(config.DATASERVER
+              + '/datasets/vocalizations/'
+              + $scope.datasetName 
+              + '/2D'
+        ).then(function(data) {
+          // TODO fillin max and min
+          quadtree = d3.quadtree()
+            .extent([[-30, 30], [-30, 30]])
+            .x(d => d.x)
+            .y(d => d.y);
+          quadtree.addAll(data.data);
+          $scope.scatterData = data.data;
+          return data;
+        });
       });
+    };
 
+    // Allow up and down keys to scroll through spectrograms
     $scope.onKeyUp = function(evt) {
       if (evt.keyCode === 40) {
         --$scope.idx;
@@ -171,49 +190,16 @@ angular.module('controllers', [])
       }
     }
 
+    // Request new spectrogram when new datapoint selected
     $scope.$watch('idx', function() {
-      if ($scope.idx === 0 || !!$scope.idx) {
-        getSpecData();
-      }
+      if ($scope.idx === 0 || !!$scope.idx) getSpecData();
     });
 
+    // Called when mouse moves over the scatter plot to visualize nearest spectrogram
     $scope.selectCircle = function(x, y, r) {
       var closest = quadtree.find(x, y);
-      if (!!closest) {
-        $scope.idx = closest.idx;
-      }
+      if (!!closest) $scope.idx = closest.idx;
       $scope.$apply()
-    }
-
-    var groupIdx = 0;
-    $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
-      $scope.selectedGroups = [{
-        idx: groupIdx,
-        data: hits,
-        center: data.center,
-        angle: data.angle,
-        axes: data.axes
-      }];
-      groupIdx++;
-
-      var hits = [];
-      quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
-      hits.splice(0, 30);
-      var results = hits.map(function() {
-        return $http
-          .get(config.DATASERVER + '/spectrograms/' + $scope.idx)
-          .then(function(data) {
-            return data.data.spectrogram;
-          });
-      })
-
-      $q.all(results).then(function(data) {
-        $scope.groups = [];
-        data.forEach(function(d, i) {
-          $scope.groups.push(d);
-        });
-      });
-      $scope.$apply();
     }
   }
 ]);
@@ -263,7 +249,9 @@ angular.module('charts', [])
           }
         }
         dummyContext.putImageData(image, 0, 0);
+        context.scale(2.0, 1.4);
         context.drawImage(dummyCanvas, 0, 0);
+        context.scale(1 / 2.0, 1 / 1.4);
       };
 
       scope.$watchCollection(function() {
@@ -314,7 +302,7 @@ angular.module('charts', [])
       var line = d3.line()
         .x((d, i) => scales.x(i))
         .y(d => scales.y(d))
-        .curve(d3.curveLinear);
+        .curve(d3.curveBasis);
 
       var plotGroup = svg.append('g');
 

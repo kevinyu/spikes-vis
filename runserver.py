@@ -1,8 +1,11 @@
+import cPickle as pickle
 import os
 import glob
 
 from flask import Flask, render_template, jsonify
 import config
+
+from api import utils
 
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -14,6 +17,55 @@ app.config["DATASERVER"] = config.DATASERVER
 def index():
     return render_template("index.html")
 
+
+@app.route("/datasets/<category>")
+def get_datasets(category):
+    return jsonify(utils.get_datasets(category))
+
+
+@app.route("/datasets/<category>/<dataset_name>/2D")
+def get_2d_set(category, dataset_name):
+    filename = utils.get_2d_file(category, dataset_name)
+    with open(filename, "rb") as datafile:
+        data = pickle.load(datafile)
+    return jsonify([
+        {"idx": i, "x": x, "y": y}
+        for i, (x, y) in enumerate(data)
+    ])
+
+
+_cache = {}
+def preload_spectrograms(category, dataset_name):
+    key = (category, dataset_name)
+    if key in _cache:
+        pass
+    else:
+        spec_file = utils.get_spectrogram_file(category, dataset_name)
+        if not os.path.isfile(spec_file):
+            return
+        with open(spec_file, "rb") as datafile:
+            spec_data = utils.listify(pickle.load(datafile))
+        _cache[key] = spec_data
+
+    return _cache[key]
+
+
+@app.route("/datasets/<category>/<dataset_name>/spectrograms/load")
+def trigger_preload(category, dataset_name):
+    preload_spectrograms(category, dataset_name)
+    return jsonify({"success": True})
+
+
+@app.route("/datasets/<category>/<dataset_name>/spectrograms/<int:idx>")
+def get_spectrogram(category, dataset_name, idx):
+    dataset = preload_spectrograms(category, dataset_name)
+    if not dataset:
+        return jsonify({})
+    return jsonify({
+        "idx": idx,
+        "spectrogram": dataset[idx]
+    })
+    
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=config.PORT, debug=config.DEBUG)
