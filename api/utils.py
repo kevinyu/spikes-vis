@@ -40,11 +40,20 @@ def get_waveforms_file(category, dataset_name):
 
 
 def get_2d_file(category, dataset_name):
-    return os.path.join(
+    pklfile = os.path.join(
                 config.DATADIR,
                 category,
                 dataset_name,
                 "2d.pkl")
+    npyfile = os.path.join(
+                config.DATADIR,
+                category,
+                dataset_name,
+                "2d.npy")
+    if os.path.exists(npyfile):
+        return npyfile
+    elif os.path.exists(pklfile):
+        return pklfile
 
 
 def load_pkl_or_npy(filename):

@@ -43,8 +43,8 @@ def preload_spectrograms(category, dataset_name):
         spec_file = utils.get_spectrogram_file(category, dataset_name)
         if not os.path.isfile(spec_file):
             return
-        with open(spec_file, "rb") as datafile:
-            spec_data = utils.listify(pickle.load(datafile))
+        spec_data = utils.load_pkl_or_npy(spec_file)
+        spec_data = utils.listify(spec_data)
         _cache[key] = spec_data
 
     return _cache[key]
@@ -72,8 +72,8 @@ def get_waveforms(category, dataset_name):
     filename = utils.get_waveforms_file(category, dataset_name)
     dataset = utils.load_pkl_or_npy(filename)
     return jsonify([{
-        "idx": idx,
-        "waveform": row
+        "idx": i,
+        "waveform": list(row)
     } for i, row in enumerate(dataset)])
     
 
