@@ -1,17 +1,31 @@
-<div>
+<div class="dataset-dropdown">
+  <div class="btn-group">
+    <button type="button" class="btn btn-primary">{{ datasetName }}</button>
+    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+      <span class="caret"></span>
+    </button>
+    <ul class="dropdown-menu" role="menu">
+      <li><a ng-click="selectDataset($index)" ng-repeat="dataset in datasetChoices">{{ dataset }}</a></li>
+    </ul>
+  </div>
+</div>
+
+<div ng-class="{hidden: !!waveformsLoaded}">
+  <img src="static/images/balls.svg"></img>
+  <div>Loading spike waveforms...</div>
+</div>
+
+<div ng-class="{hidden: !waveformsLoaded}">
   <div class="scatter-plot">
-    <interactive-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="spikes"
+    <interactive-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="scatterData"
       select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
       xmin="-5.7" xmax="5.7" ymin="-5.4" ymax="5.6"></interactive-scatter>
   </div>
   <div>
-    <div ng-class="{hidden: !waveformsLoaded}">
+    <div>
       <waveforms-chart data="currentlySelected" n-samples="32" width="600" height="400"
         horiz-margin="20" vert-margin="10" loaded='waveformsLoaded'
         xmin="0" xmax="32" ymin="-200" ymax="160"></waveforms-chart>
-    </div>
-    <div ng-class="{hidden: !!waveformsLoaded}">
-      <a>Loading spike waveforms...</a>
     </div>
   </div>
 </div>

@@ -26,8 +26,8 @@ def get_datasets(category):
 @app.route("/datasets/<category>/<dataset_name>/2D")
 def get_2d_set(category, dataset_name):
     filename = utils.get_2d_file(category, dataset_name)
-    with open(filename, "rb") as datafile:
-        data = pickle.load(datafile)
+    data = utils.load_pkl_or_npy(filename)
+
     return jsonify([
         {"idx": i, "x": x, "y": y}
         for i, (x, y) in enumerate(data)
@@ -65,6 +65,16 @@ def get_spectrogram(category, dataset_name, idx):
         "idx": idx,
         "spectrogram": dataset[idx]
     })
+
+
+@app.route("/datasets/<category>/<dataset_name>/waveforms")
+def get_waveforms(category, dataset_name):
+    filename = utils.get_waveforms_file(category, dataset_name)
+    dataset = utils.load_pkl_or_npy(filename)
+    return jsonify([{
+        "idx": idx,
+        "waveform": row
+    } for i, row in enumerate(dataset)])
     
 
 if __name__ == "__main__":

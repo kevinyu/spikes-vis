@@ -37,7 +37,10 @@ angular.module('App', [
 
 .config([
   '$routeProvider',
-  function($routeProvider) {
+  '$locationProvider',
+  function($routeProvider, $locationProvider) {
+    // $locationProvider.html5Mode(true);
+
     $routeProvider
     .when('/', {
       templateUrl: 'static/partials/home.html',
@@ -47,7 +50,7 @@ angular.module('App', [
       templateUrl: 'static/partials/spikes.html',
       controller: 'spikesController'
     })
-    .when('/spectrogram', {
+    .when('/spectrograms', {
       templateUrl: 'static/partials/spectrogram.html',
       controller: 'spectrogramController'
     });
@@ -58,42 +61,71 @@ angular.module('App', [
 
 angular.module('controllers', [])
 
+.controller('homeController', function() {
+})
+
 .controller('spikesController', [
   '$scope',
   '$http',
   '$q',
   function($scope, $http, $q) {
-    var quadtree = d3.quadtree()
-      .extent([[-10, 10], [-10, 10]])
-      .x(d => d.x)
-      .y(d => d.y);
+    var quadtree;
+    var getSpikesData;
 
+    $scope.datasetChoices = []      // Datasets available for visualization (can switch between them)
+    $scope.selectedDatasetIdx = 0;
+    $scope.scatterData = [];        // List of points to visualize in scatter plot
     $scope.waveformsLoaded = false;
-    $scope.groups = [];
-    $scope.spikes = [];
 
-    var getSpikesData = $http
-      .get(config.DATASERVER + '/scatter')
-      .then(function(data) {
-        quadtree.addAll(data.data);
-        $scope.spikes = data.data;
-        return data;
-      });
-
-    $q.all([
-      getSpikesData,
-      $http.get(config.DATASERVER + '/data')
-    ]).then(function(results) {
-      var waveformData = results[1].data;
-      // TODO: in the future should make sure that the id's line up properly
-      $scope.spikes.forEach(function(d, i) {
-        d.waveform = waveformData[i].waveform;
-        quadtree.remove(d);
-        quadtree.add(d);
-      });
-      $scope.waveformsLoaded = true;
+    // load up the options
+    $http.get('datasets/spikes').then(function(data) {
+      $scope.datasetChoices = data.data;
+      $scope.selectDataset(0);
     });
 
+    // Change which dataset to visualize by index
+    $scope.selectDataset = function(idx) {
+        $scope.datasetName = $scope.datasetChoices[idx];
+        getScatterData();
+    }
+
+    var getScatterData = function() {
+      $scope.waveformsLoaded = false;
+      $scope.groups = [];
+      getSpikesData = $http.get(
+            'datasets/spikes/'
+            + $scope.datasetName
+            + '/2D'
+        ).then(function(data) {
+          quadtree.addAll(data.data);
+          $scope.scatterData = data.data;
+          return data;
+        });
+
+      quadtree = d3.quadtree()
+        .extent([[-10, 10], [-10, 10]])
+        .x(d => d.x)
+        .y(d => d.y);
+
+      $q.all([
+        getSpikesData,
+        $http.get('datasets/spikes/'
+            + $scope.datasetName
+            + '/waveforms')
+      ]).then(function(results) {
+        var waveformData = results[1].data;
+        // TODO: in the future should make sure that the id's line up properly
+        $scope.scatterData.forEach(function(d, i) {
+          d.waveform = waveformData[i].waveform;
+          quadtree.remove(d);
+          quadtree.add(d);
+        });
+        $scope.waveformsLoaded = true;
+      });
+
+    };
+
+    $scope.groups = [];
     $scope.currentlySelected = [];
     $scope.selectCircle = function(x, y, r) {
       $scope.currentlySelected.splice(0, $scope.currentlySelected.length);
