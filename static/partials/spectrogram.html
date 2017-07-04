@@ -1,4 +1,4 @@
-<div>
+<div class="dataset-dropdown">
   <div class="btn-group">
     <button type="button" class="btn btn-primary">{{ datasetName }}</button>
     <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
@@ -14,19 +14,26 @@
   <img src="static/images/balls.svg"></img>
   <div>Loading spectrogram data...</div>
 </div>
+
 <div ng-class="{hidden: !!loading}">
   <div>
     <div class="scatter-plot">
-      <spikes-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="scatterData"
+      <interactive-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="scatterData"
         select-circle="selectCircle" select-ellipse="selectEllipse"
         selected-groups="selectedGroups"
-        xmin="-20" xmax="20" ymin="-20" ymax="20"></spikes-scatter>
+        xmin="-20" xmax="20" ymin="-20" ymax="20"></interactive-scatter>
     </div>
   </div>
 
   <div>
-    <input ng-model="idx" ng-keydown="onKeyUp($event)"/>
-    <heatmap-chart data="data" width="1000" height="1000"
+
+    <heatmap-chart data="data" width="1000" height="400"
       horiz-margin="20" vert-margin="10"></heatmap-chart>
+    <div class="form-group row data-box-container">
+      <div class="col-xs-2">
+        <label for="curr-index-box">Data index:</label>
+        <input id="curr-index-box" class="form-control" ng-model="idx" ng-keydown="onKeyUp($event)" type="text"/>
+      </div>
+    </div>
   </div>
 </div>

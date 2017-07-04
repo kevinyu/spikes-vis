@@ -39,6 +39,10 @@ angular.module('App', [
   '$routeProvider',
   function($routeProvider) {
     $routeProvider
+    .when('/', {
+      templateUrl: 'static/partials/home.html',
+      controller: 'homeController'
+    })
     .when('/spikes', {
       templateUrl: 'static/partials/spikes.html',
       controller: 'spikesController'
@@ -47,7 +51,7 @@ angular.module('App', [
       templateUrl: 'static/partials/spectrogram.html',
       controller: 'spectrogramController'
     });
-    $routeProvider.otherwise({redirectTo: '/spectrogram'});
+    $routeProvider.otherwise({redirectTo: '/'});
   }
 ]);
 
@@ -150,8 +154,7 @@ angular.module('controllers', [])
 
     // Load a single spectrogram's data
     var getSpecData = function() {
-      $http.get(config.DATASERVER
-            + '/datasets/vocalizations/'
+      $http.get('datasets/vocalizations/'
             + $scope.datasetName
             + '/spectrograms/'
             + $scope.idx)
@@ -164,8 +167,7 @@ angular.module('controllers', [])
     // Load scatter plot 2d data for current dataset
     var getScatterData = function() {
       loadedConfirmation.then(function() {
-        $http.get(config.DATASERVER
-              + '/datasets/vocalizations/'
+        $http.get('datasets/vocalizations/'
               + $scope.datasetName 
               + '/2D'
         ).then(function(data) {
@@ -354,10 +356,10 @@ angular.module('charts', [])
   }
 })
 
-.directive('spikesScatter', ['$http', function($http) {
+.directive('interactiveScatter', ['$http', function($http) {
   return {
     restrict: 'E',
-    templateUrl: 'static/partials/spikes_scatter.html',
+    templateUrl: 'static/partials/interactive_scatter.html',
     scope: {
       data: '=',
       width: '@',
