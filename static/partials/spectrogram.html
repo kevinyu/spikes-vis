@@ -20,7 +20,7 @@
     <div class="scatter-plot">
       <interactive-scatter width="600" height="600" horiz-margin="20" vert-margin="20" data="scatterData"
         select-circle="selectCircle" select-ellipse="selectEllipse"
-        selected-groups="selectedGroups"
+        selected-groups="groups"
         xmin="-20" xmax="20" ymin="-20" ymax="20"></interactive-scatter>
     </div>
   </div>
@@ -35,5 +35,6 @@
         <input id="curr-index-box" class="form-control" ng-model="idx" ng-keydown="onKeyUp($event)" type="text"/>
       </div>
     </div>
+    <textarea style="width: 50%; margin: 20px;" rows=10>{{ indiciesInEllipse }}</textarea>
   </div>
 </div>

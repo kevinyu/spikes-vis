@@ -190,6 +190,7 @@ angular.module('controllers', [])
     $scope.datasetChoices = []      // Datasets available for visualization (can switch between them)
     $scope.selectedDatasetIdx = 0;
     $scope.loading = false;         // Loading flag (server will be slow when first loading spectrograms files)
+    $scope.groups = [];
 
     // load up the options
     $http.get('datasets/vocalizations').then(function(data) {
@@ -256,6 +257,20 @@ angular.module('controllers', [])
       var closest = quadtree.find(x, y);
       if (!!closest) $scope.idx = closest.idx;
       $scope.$apply()
+    }
+
+    $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
+      var hits = [];
+      quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
+      $scope.indiciesInEllipse = math.sort(hits.map(d => d.idx));
+      $scope.groups = [{
+        idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
+        data: hits,
+        center: data.center,
+        angle: data.angle,
+        axes: data.axes
+      }];
+      $scope.$apply();
     }
   }
 ]);
@@ -465,10 +480,10 @@ angular.module('charts', [])
 
       scope.$watch('data', function() {
         limits = {
-          xmax: d3.max(scope.data.map(d => d.x)),
-          xmin: d3.min(scope.data.map(d => d.x)),
-          ymax: d3.max(scope.data.map(d => d.y)),
-          ymin: d3.min(scope.data.map(d => d.y))
+          xmax: d3.max(scope.data.map(d => d.x)) * 1.1,
+          xmin: d3.min(scope.data.map(d => d.x)) * 1.1,
+          ymax: d3.max(scope.data.map(d => d.y)) * 1.1,
+          ymin: d3.min(scope.data.map(d => d.y)) * 1.1
         };
 
         scales = {
@@ -573,6 +588,7 @@ angular.module('charts', [])
           if (dx * dx + dy * dy > 100) d.push([x0 = x1, y0 = y1]);
           else d[d.length - 1] = [x1, y1];
           active.attr('d', dragline);
+          active.attr("stroke", "black");
         });
 
         d3.event.on('end', function() {
