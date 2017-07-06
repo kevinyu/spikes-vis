@@ -2,9 +2,10 @@ import cPickle as pickle
 import os
 import glob
 
+import numpy as np
 from flask import Flask, render_template, jsonify
-import config
 
+import config
 from api import utils
 
 
@@ -28,9 +29,16 @@ def get_2d_set(category, dataset_name):
     filename = utils.get_2d_file(category, dataset_name)
     data = utils.load_pkl_or_npy(filename)
 
+    cluster_file = utils.get_cluster_file(category, dataset_name)
+    print cluster_file
+    if cluster_file:
+        clusters = utils.load_pkl_or_npy(cluster_file)
+    else:
+        clusters = np.zeros(len(data))
+
     return jsonify([
-        {"idx": i, "x": x, "y": y}
-        for i, (x, y) in enumerate(data)
+        {"idx": i, "x": x, "y": y, "cluster": clust}
+        for i, ((x, y), clust) in enumerate(zip(data, clusters))
     ])
 
 

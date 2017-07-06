@@ -20,6 +20,11 @@ def listify(data):
     return [_listify(d) for d in data]
 
 
+def pkl_or_npy(filename):
+    basename, ext = os.path.splitext(filename)
+    return [basename + ".pkl", basename + ".npy"]
+
+
 def get_datasets(category="vocalizations"):
     return os.listdir(os.path.join(config.DATADIR, category))
 
@@ -33,35 +38,61 @@ def get_spectrogram_file(category, dataset_name):
 
 
 def get_waveforms_file(category, dataset_name):
-    return os.path.join(
+    files = pkl_or_npy(os.path.join(
             config.DATADIR,
             category,
             dataset_name,
-            "waveforms.npy")
+            "waveforms.npy"))
+    for f in files:
+        if os.path.exists(f):
+            return f
 
 
 def get_2d_file(category, dataset_name):
-    pklfile = os.path.join(
+    files = pkl_or_npy(os.path.join(
                 config.DATADIR,
                 category,
                 dataset_name,
-                "2d.pkl")
-    npyfile = os.path.join(
+                "2d.pkl"))
+    for f in files:
+        if os.path.exists(f):
+            return f
+
+
+def get_cluster_file(category, dataset_name):
+    files = pkl_or_npy(os.path.join(
                 config.DATADIR,
                 category,
                 dataset_name,
-                "2d.npy")
-    if os.path.exists(npyfile):
-        return npyfile
-    elif os.path.exists(pklfile):
-        return pklfile
+                "clusters.pkl"))
+    for f in files:
+        if os.path.exists(f):
+            return f
+
+
+def get_cluster_flie(category, dataset_name):
+    files = pkl_or_npy(os.path.join(
+                config.DATADIR,
+                category,
+                dataset_name,
+                "clusters.pkl"))
+    for f in files:
+        if os.path.exists(f):
+            return f
 
 
 def load_pkl_or_npy(filename):
-    if os.path.splitext(filename)[1] == ".pkl":
-        with open(filename, "rb") as datafile:
-            data = pickle.load(datafile)
-    elif os.path.splitext(filename)[1] == ".npy":
-        data = np.load(filename)
+    if isinstance(filename, basestring):
+        filenames = [filename]
+    else:
+        filenames = filename
 
-    return data
+    for filename in filenames:
+        if os.path.exists(filename):
+            if os.path.splitext(filename)[1] == ".pkl":
+                with open(filename, "rb") as datafile:
+                    data = pickle.load(datafile)
+            elif os.path.splitext(filename)[1] == ".npy":
+                data = np.load(filename)
+
+            return data

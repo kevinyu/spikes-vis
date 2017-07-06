@@ -1,5 +1,11 @@
 'use strict';
 
+function colores_google(n) {
+  var colores_g = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99", "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262", "#5574a6", "#3b3eac"];
+  return colores_g[n % colores_g.length];
+}
+
+
 /* helper function to search d3.quadtree for points within an ellipse */
 function ellipseNearest(node, rx, ry, angle, hits) {
   return function(quad, x1, y1, x2, y2) {
@@ -76,6 +82,12 @@ angular.module('controllers', [])
     $scope.selectedDatasetIdx = 0;
     $scope.scatterData = [];        // List of points to visualize in scatter plot
     $scope.waveformsLoaded = false;
+    $scope.limits = {
+      xmax: 10,
+      xmin: -10,
+      ymax: 10,
+      ymin: -10
+    };
 
     // load up the options
     $http.get('datasets/spikes').then(function(data) {
@@ -115,11 +127,21 @@ angular.module('controllers', [])
       ]).then(function(results) {
         var waveformData = results[1].data;
         // TODO: in the future should make sure that the id's line up properly
+        var datas = [];
         $scope.scatterData.forEach(function(d, i) {
           d.waveform = waveformData[i].waveform;
+          datas = datas.concat(d.waveform)
           quadtree.remove(d);
           quadtree.add(d);
         });
+        var std = math.std(datas);
+        var mean = math.mean(datas);
+        $scope.limits = {
+          xmin: 0,
+          xmax: 32,
+          ymin: mean - 4 * std,
+          ymax: mean + 4 * std
+        };
         $scope.waveformsLoaded = true;
       });
 
@@ -313,7 +335,8 @@ angular.module('charts', [])
       vertMargin: '@',
       loaded: '=',
       useCanvas: '@',
-      closeable: '@'
+      closeable: '@',
+      limits: '='
     },
     link: function(scope, element, attrs) {
       var _canvas = element[0].querySelector('canvas');
@@ -326,12 +349,23 @@ angular.module('charts', [])
 
       var scales = {
         x: d3.scaleLinear()
-          .domain([attrs.xmin, attrs.xmax])
+          .domain([scope.limits.xmin, scope.limits.xmax])
           .range([0, width]),
         y: d3.scaleLinear()
-          .domain([attrs.ymin, attrs.ymax])
+          .domain([scope.limits.ymin, scope.limits.ymax])
           .range([height, 0])
       };
+
+      scope.$watch('limits', function(limits) {
+        scales = {
+          x: d3.scaleLinear()
+            .domain([limits.xmin, limits.xmax])
+            .range([0, width]),
+          y: d3.scaleLinear()
+            .domain([limits.ymin, limits.ymax])
+            .range([height, 0])
+        };
+      });
 
       var line = d3.line()
         .x((d, i) => scales.x(i))
@@ -360,11 +394,12 @@ angular.module('charts', [])
         }
         if (!scope.useCanvas) {
           var lines = plotGroup.selectAll('path')
-            .data(data, d => d.idx);
+            .data(data, d => d.idx)
           lines.enter().append('path')
+            .attr('stroke', d => colores_google(d.cluster))
             .datum(d => d.waveform)
             .attr('class', 'line')
-            .attr('d', line);
+            .attr('d', line)
           lines.exit().remove();
         } else {
           context.clearRect(0, 0, context.canvas.width, context.canvas.height);
@@ -409,18 +444,11 @@ angular.module('charts', [])
       var context = _canvas.getContext('2d');
       var width = scope.width - 2 * scope.horizMargin;
       var height = scope.height - 2 * scope.vertMargin;
+      var limits = {};
+      var scales;
 
       var fakeContainer = document.createElement('custom');
       var container = d3.select(fakeContainer);
-
-      var scales = {
-        x: d3.scaleLinear()
-          .domain([attrs.xmin, attrs.xmax])
-          .range([0, width]),
-        y: d3.scaleLinear()
-          .domain([attrs.ymin, attrs.ymax])
-          .range([height, 0])
-      }
 
       var radiusCircle = svg.append('g')
         .append('ellipse')
@@ -436,17 +464,34 @@ angular.module('charts', [])
       var lassoLine = svg.select('path');
 
       scope.$watch('data', function() {
+        limits = {
+          xmax: d3.max(scope.data.map(d => d.x)),
+          xmin: d3.min(scope.data.map(d => d.x)),
+          ymax: d3.max(scope.data.map(d => d.y)),
+          ymin: d3.min(scope.data.map(d => d.y))
+        };
+
+        scales = {
+          x: d3.scaleLinear()
+            .domain([limits.xmin, limits.xmax])
+            .range([0, width]),
+          y: d3.scaleLinear()
+            .domain([limits.ymin, limits.ymax])
+            .range([height, 0])
+        };
+
         draw(scope.data);
       });
 
       function draw(data) {
+        container.selectAll('c.circle').remove();
         var circles = container.selectAll('c.circle')
           .data(data, d => d.idx);
 
         circles.enter()
           .append('c')
           .classed('circle', true)
-          .attr('fillStyle', 'black')
+          .attr('fillStyle', d => colores_google(d.cluster))
           .attr('size', 1.0)
           .attr('alpha', 0.8)
           .attr('x', d => scales.x(d.x))
