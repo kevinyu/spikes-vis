@@ -6,6 +6,25 @@ function colores_google(n) {
 }
 
 
+var pointInPolygon = function (point, vs) {
+  // ray-casting algorithm based on
+  // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+  var xi, xj, i, intersect, yi, yj,
+      x = point[0],
+      y = point[1],
+      inside = false;
+  for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    xi = vs[i][0],
+    yi = vs[i][1],
+    xj = vs[j][0],
+    yj = vs[j][1],
+    intersect = ((yi > y) != (yj > y))
+        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
 /* helper function to search d3.quadtree for points within an ellipse */
 function ellipseNearest(node, rx, ry, angle, hits) {
   return function(quad, x1, y1, x2, y2) {
@@ -156,6 +175,7 @@ angular.module('controllers', [])
     }
 
     // Select an entire ellipse and create a new plot of waveforms
+    /*
     $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
       var hits = [];
       quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
@@ -165,6 +185,15 @@ angular.module('controllers', [])
         center: data.center,
         angle: data.angle,
         axes: data.axes
+      });
+      $scope.$apply();
+    }
+    */
+    $scope.selectEllipse = function(hits, coords) {
+      $scope.groups.push({
+        idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
+        data: hits,
+        coords: coords
       });
       $scope.$apply();
     }
@@ -258,7 +287,7 @@ angular.module('controllers', [])
       if (!!closest) $scope.idx = closest.idx;
       $scope.$apply()
     }
-
+    /*
     $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
       var hits = [];
       quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
@@ -272,6 +301,17 @@ angular.module('controllers', [])
       }];
       $scope.$apply();
     }
+    */
+
+    $scope.selectEllipse = function(hits, coords) {
+      $scope.indiciesInEllipse = hits.map(d => d.idx);
+      $scope.groups = [{
+        idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
+        data: hits,
+        coords: coords
+      }];
+      $scope.$apply();
+    };
   }
 ]);
 
@@ -573,6 +613,7 @@ angular.module('charts', [])
         if (!scope.data) {
           return;
         }
+        var coords = [];
         var d = d3.event.subject,
           active = svg.append('path').datum(d),
           x0 = d3.event.x,
@@ -582,6 +623,7 @@ angular.module('charts', [])
           var x1 = d3.event.x;
           var y1 = d3.event.y;
           moveMouse([x1, y1]);
+          coords.push([scales.x.invert(x1), scales.y.invert(y1)]);
           var dx = x1 - x0;
           var dy = y1 - y0;
 
@@ -592,23 +634,17 @@ angular.module('charts', [])
         });
 
         d3.event.on('end', function() {
-          var fit = fitEllipse(d);
-          var center = ellipseCenter(fit);
-          var angle = ellipseAngle(fit);
-          var axes = ellipseAxes(fit);
-          active.remove();
-
+          var hits = [];
+          scope.data.forEach(function(d) {
+            var point = [d.x, d.y];
+            if (pointInPolygon(point, coords)) {
+              hits.push(d);
+            }
+          });
           scope.selectEllipse(
-            scales.x.invert(center.x),
-            scales.y.invert(center.y),
-            scales.x.invert(axes.a) - scales.x.domain()[0],
-            scales.y.invert(axes.b) - scales.y.domain()[0],
-            angle,
-            {
-              center: center,
-              axes: axes,
-              angle: angle
-            });
+            hits,
+            coords
+          );
         });
       }
 
@@ -616,6 +652,21 @@ angular.module('charts', [])
         if (!selectedGroups) {
             return;
         }
+
+        var dragline = d3.line()
+          .curve(d3.curveBasis);
+        lassos.selectAll('path.line').remove();
+        var lines = lassos.selectAll('path')
+          .data(selectedGroups, d => d.idx);
+
+        lines.enter().append('path')
+          .datum(d => d.coords)
+          .attr('class', 'line')
+          .attr('stroke', "black")
+          .attr('d', dragline);
+        lines.exit().remove();
+
+        /*
         var ellipses = lassos.selectAll('ellipse')
           .data(selectedGroups, d => d.idx);
 
@@ -632,6 +683,7 @@ angular.module('charts', [])
             return 'rotate(' + d.angle * 180 / Math.PI + ',' + d.center.x + ',' + d.center.y + ')';
           });
         ellipses.exit().remove();
+        */
       });
 
       canvas.on('mousemove', function() {
