@@ -422,6 +422,12 @@ angular.module('charts', [])
         };
       });
 
+      var yAxis = d3.axisLeft(scales.y);
+      svg.append("g")
+        .attr("class", "yaxis")
+        .attr("transform", "translate(" + 50 + ", 0)")
+        .call(yAxis);
+
       var line = d3.line()
         .x((d, i) => scales.x(i))
         .y(d => scales.y(d))
@@ -447,6 +453,12 @@ angular.module('charts', [])
             });
           rect.append('text').text('X');
         }
+
+        yAxis = d3.axisLeft(scales.y);
+        svg.select(".yaxis")
+          .call(yAxis);  
+
+
         if (!scope.useCanvas) {
           var lines = plotGroup.selectAll('path')
             .data(data, d => d.idx)
