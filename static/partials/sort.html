@@ -1,6 +1,8 @@
 <div style="height=40px;">
-  <p ng-model="k">clusters = {{ k }}</p>
+  <p ng-model="k">Set number of clusters (currently {{ k }})</p>
+  <div>
   <button ng-repeat="i in availableK" ng-click="setK(i)">{{ i }}</button>
+  </div>
 </div>
 
 <div ng-class="{hidden: !!waveformsLoaded}" style="margin: 0 auto;">
@@ -9,17 +11,34 @@
 </div>
 
 <div ng-class="{hidden: !waveformsLoaded}">
-  <div class="scatter-plot">
-    <interactive-scatter width="500" height="500" horiz-margin="20" vert-margin="20" data="scatterData"
-      select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
-      xmin="-7.0" xmax="7.0" ymin="-7" ymax="7"></interactive-scatter>
+  <div class="row">
+    <div class="col col-md-4">
+      <div class="scatter-plot">
+        <interactive-scatter width="400" height="400" horiz-margin="20" vert-margin="20" data="scatterData"
+          select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
+          xmin="-7.0" xmax="7.0" ymin="-7" ymax="7"></interactive-scatter>
+      </div>
+    </div>
+
+    <div class="col col-md-4">
+      <div class="row" ng-repeat="i in availableK">
+        <div class="col col-md-12"><div class="btn btn-sm">{{ i }}</div>k</div>
+      </div>
+      <div class="row">
+        <div class="col col-md-12">
+          <waveforms-chart data="currentlySelected" n-samples="32" width="300" height="200"
+            horiz-margin="20" vert-margin="10" loaded='waveformsLoaded' limits="limits"
+            xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
+        </div>
+      </div>
+    </div>
+
+    <div class="col col-md-4">
+    </div>
   </div>
+
   <div>
     <div>
-      <waveforms-chart data="currentlySelected" n-samples="32" width="300" height="200"
-        horiz-margin="20" vert-margin="10" loaded='waveformsLoaded' limits="limits"
-        xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
-    </div>
   </div>
 </div>
 <div style="clear: both;">
