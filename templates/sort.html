@@ -8,7 +8,7 @@
 
     <link rel="stylesheet" type="text/css" href="static/css/main.css">
     <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    <title>React App</title>
+    <title>K-Means Sorting Tool</title>
   </head>
   <body>
     <noscript>
@@ -17,10 +17,7 @@
     <div id="root" ng-app="App">
       <div class="nav-bar">
         <ul>
-          <li class="nav-item">SPIKESVIS</li>
-          <li class="nav-item"><a href="#!/sort">Sort</a></li>
-          <li class="nav-item"><a href="#!/spectrograms">Sounds</a></li>
-          <li class="nav-item"><a href="#!/spikes">Spikes</a></li>
+          <li class="nav-item">SPIKESORT</li>
         </ul>
       </div>
       <ng-view></ng-view>
@@ -39,6 +36,6 @@
       var config = {};
       config.DATASERVER = "{{ config['DATASERVER'] }}";
     </script>
-    <script src="../static/js/app.js"></script>
+    <script src="../static/js/sortapp.js"></script>
   </body>
 </html>

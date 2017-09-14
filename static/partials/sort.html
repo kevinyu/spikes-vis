@@ -1,0 +1,31 @@
+<div style="height=40px;">
+  <p ng-model="k">clusters = {{ k }}</p>
+  <button ng-repeat="i in availableK" ng-click="setK(i)">{{ i }}</button>
+</div>
+
+<div ng-class="{hidden: !!waveformsLoaded}" style="margin: 0 auto;">
+  <img src="static/images/balls.svg" style="display: block; margin: auto;"></img>
+  <div style="text-align: center;">Loading spike waveforms...</div>
+</div>
+
+<div ng-class="{hidden: !waveformsLoaded}">
+  <div class="scatter-plot">
+    <interactive-scatter width="500" height="500" horiz-margin="20" vert-margin="20" data="scatterData"
+      select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
+      xmin="-7.0" xmax="7.0" ymin="-7" ymax="7"></interactive-scatter>
+  </div>
+  <div>
+    <div>
+      <waveforms-chart data="currentlySelected" n-samples="32" width="300" height="200"
+        horiz-margin="20" vert-margin="10" loaded='waveformsLoaded' limits="limits"
+        xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
+    </div>
+  </div>
+</div>
+<div style="clear: both;">
+  <div style="float: left;" ng-repeat="group in groups">
+    <waveforms-chart ng-click="close(group)" use-canvas="true" data="group.data" n-samples="32" width="300" height="200"
+      horiz-margin="10" vert-margin="10" loaded='waveformsLoaded' closeCallback="group.close" limits="limits"
+      xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
+  </div>
+</div>

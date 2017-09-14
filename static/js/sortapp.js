@@ -5,26 +5,6 @@ function colores_google(n) {
   return colores_g[n % colores_g.length];
 }
 
-
-var pointInPolygon = function (point, vs) {
-  // ray-casting algorithm based on
-  // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
-  var xi, xj, i, intersect, yi, yj,
-      x = point[0],
-      y = point[1],
-      inside = false;
-  for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-    xi = vs[i][0],
-    yi = vs[i][1],
-    xj = vs[j][0],
-    yj = vs[j][1],
-    intersect = ((yi > y) != (yj > y))
-        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-};
-
 /* helper function to search d3.quadtree for points within an ellipse */
 function ellipseNearest(node, rx, ry, angle, hits) {
   return function(quad, x1, y1, x2, y2) {
@@ -53,7 +33,6 @@ function nearest(node, radius, hits) {
   return ellipseNearest(node, radius, radius, 0, hits);
 }
 
-
 angular.module('App', [
   'ngRoute',
   'controllers',
@@ -68,28 +47,16 @@ angular.module('App', [
 
     $routeProvider
     .when('/', {
-      templateUrl: 'static/partials/home.html',
-      controller: 'homeController'
+      templateUrl: 'static/partials/sort.html',
+      controller: 'sortController'
     })
-    .when('/spikes', {
-      templateUrl: 'static/partials/spikes.html',
-      controller: 'spikesController'
-    })
-    .when('/spectrograms', {
-      templateUrl: 'static/partials/spectrogram.html',
-      controller: 'spectrogramController'
-    });
     $routeProvider.otherwise({redirectTo: '/'});
   }
 ]);
 
-
 angular.module('controllers', [])
 
-.controller('homeController', function() {
-})
-
-.controller('spikesController', [
+.controller('sortController', [
   '$scope',
   '$http',
   '$q',
@@ -108,25 +75,20 @@ angular.module('controllers', [])
       ymin: -10
     };
 
-    // load up the options
-    $http.get('datasets/spikes').then(function(data) {
-      $scope.datasetChoices = data.data;
-      $scope.selectDataset(0);
-    });
+    $scope.k = 1;
+    $scope.availableK = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30];
 
-    // Change which dataset to visualize by index
-    $scope.selectDataset = function(idx) {
-        $scope.datasetName = $scope.datasetChoices[idx];
-        getScatterData();
+    $scope.setK = function(k) {
+        $scope.k = k;
     }
+
+    var waveformData = [];
 
     var getScatterData = function() {
       $scope.waveformsLoaded = false;
       $scope.groups = [];
       getSpikesData = $http.get(
-            'datasets/spikes/'
-            + $scope.datasetName
-            + '/2D'
+            'datasets/spikes/' + $scope.k
         ).then(function(data) {
           quadtree.addAll(data.data);
           $scope.scatterData = data.data;
@@ -140,11 +102,9 @@ angular.module('controllers', [])
 
       $q.all([
         getSpikesData,
-        $http.get('datasets/spikes/'
-            + $scope.datasetName
-            + '/waveforms')
+        $http.get('datasets/waveforms')
       ]).then(function(results) {
-        var waveformData = results[1].data;
+        waveformData = results[1].data;
         // TODO: in the future should make sure that the id's line up properly
         var datas = [];
         $scope.scatterData.forEach(function(d, i) {
@@ -158,13 +118,15 @@ angular.module('controllers', [])
         $scope.limits = {
           xmin: 0,
           xmax: 32,
-          ymin: mean - 6 * std,
-          ymax: mean + 6 * std
+          ymin: mean - 8 * std,
+          ymax: mean + 8 * std
         };
         $scope.waveformsLoaded = true;
       });
 
     };
+
+    getScatterData();
 
     $scope.groups = [];
     $scope.currentlySelected = [];
@@ -174,21 +136,24 @@ angular.module('controllers', [])
       $scope.$apply()
     }
 
-    // Select an entire ellipse and create a new plot of waveforms
-    /*
-    $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
-      var hits = [];
-      quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
-      $scope.groups.push({
-        idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
-        data: hits,
-        center: data.center,
-        angle: data.angle,
-        axes: data.axes
-      });
-      $scope.$apply();
-    }
-    */
+    $scope.$watch('k', function(k) {
+      if (!!$scope.waveformsLoaded) {
+          getSpikesData = $http.get(
+                'datasets/spikes/' + $scope.k
+            ).then(function(data) {
+              $scope.scatterData.forEach(function(d, i) {
+                d.waveform = waveformData[i].waveform;
+                d.cluster = data.data[i].cluster;
+                quadtree.remove(d);
+                quadtree.add(d);
+              });
+              $scope.scatterData = data.data;
+
+              // update scope clusters available
+            });
+      }
+    });
+
     $scope.selectEllipse = function(hits, coords) {
       $scope.groups.push({
         idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
@@ -204,117 +169,6 @@ angular.module('controllers', [])
     }
   }
 ])
-
-.controller('spectrogramController', [
-  '$scope',
-  '$http',
-  '$q',
-  function($scope, $http, $q) {
-    var loadedConfirmation;         // Promise that will be finished with server data loaded
-    var quadtree;
-
-    $scope.data = null;             // Currently visualized spectrogram
-    $scope.scatterData = [];        // List of points to visualize in scatter plot
-    $scope.idx = 0;                 // Currently spectrogram index to visualize
-    $scope.datasetChoices = []      // Datasets available for visualization (can switch between them)
-    $scope.selectedDatasetIdx = 0;
-    $scope.loading = false;         // Loading flag (server will be slow when first loading spectrograms files)
-    $scope.groups = [];
-
-    // load up the options
-    $http.get('datasets/vocalizations').then(function(data) {
-      $scope.datasetChoices = data.data;
-      $scope.selectDataset(0);
-    });
-
-    // Change which dataset to visualize by index
-    $scope.selectDataset = function(idx) {
-        $scope.datasetName = $scope.datasetChoices[idx];
-        $scope.loading = true;
-        loadedConfirmation = $http.get('datasets/vocalizations/' + $scope.datasetName + '/spectrograms/load');
-        loadedConfirmation.then(() => $scope.loading = false);
-        getScatterData();
-    }
-
-    // Load a single spectrogram's data
-    var getSpecData = function() {
-      $http.get('datasets/vocalizations/'
-            + $scope.datasetName
-            + '/spectrograms/'
-            + $scope.idx)
-        .then(function(data) {
-          $scope.data = data.data.spectrogram;
-          return data;
-        });
-    };
-
-    // Load scatter plot 2d data for current dataset
-    var getScatterData = function() {
-      loadedConfirmation.then(function() {
-        $http.get('datasets/vocalizations/'
-              + $scope.datasetName 
-              + '/2D'
-        ).then(function(data) {
-          // TODO fillin max and min
-          quadtree = d3.quadtree()
-            .extent([[-30, 30], [-30, 30]])
-            .x(d => d.x)
-            .y(d => d.y);
-          quadtree.addAll(data.data);
-          $scope.scatterData = data.data;
-          return data;
-        });
-      });
-    };
-
-    // Allow up and down keys to scroll through spectrograms
-    $scope.onKeyUp = function(evt) {
-      if (evt.keyCode === 40) {
-        --$scope.idx;
-      } else if (evt.keyCode === 38) {
-        ++$scope.idx;
-      }
-    }
-
-    // Request new spectrogram when new datapoint selected
-    $scope.$watch('idx', function() {
-      if ($scope.idx === 0 || !!$scope.idx) getSpecData();
-    });
-
-    // Called when mouse moves over the scatter plot to visualize nearest spectrogram
-    $scope.selectCircle = function(x, y, r) {
-      var closest = quadtree.find(x, y);
-      if (!!closest) $scope.idx = closest.idx;
-      $scope.$apply()
-    }
-    /*
-    $scope.selectEllipse = function(x, y, rx, ry, angle, data) {
-      var hits = [];
-      quadtree.visit(ellipseNearest({x: x, y: y}, rx, ry, angle, hits));
-      $scope.indiciesInEllipse = math.sort(hits.map(d => d.idx));
-      $scope.groups = [{
-        idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
-        data: hits,
-        center: data.center,
-        angle: data.angle,
-        axes: data.axes
-      }];
-      $scope.$apply();
-    }
-    */
-
-    $scope.selectEllipse = function(hits, coords) {
-      $scope.indiciesInEllipse = hits.map(d => d.idx);
-      $scope.groups = [{
-        idx: $scope.groups.length ? $scope.groups[$scope.groups.length - 1].idx + 1 : 0,
-        data: hits,
-        coords: coords
-      }];
-      $scope.$apply();
-    };
-  }
-]);
-
 
 angular.module('charts', [])
 
@@ -593,10 +447,6 @@ angular.module('charts', [])
           y: scales.y.invert(mouse[1])
         }
 
-        if (!!lassoing) {
-          lassoPath.push(mouse);
-        }
-
         var RADIUS = 20;
 
         radiusCircle
@@ -608,95 +458,6 @@ angular.module('charts', [])
         const r = scales.x.invert(RADIUS) - scales.x.domain()[0];
         scope.selectCircle(mouse.x, mouse.y, r);
       }
-
-      /* lasso code */
-      var lassoPath = [];
-      var lassoing = false;
-
-      var dragline = d3.line()
-        .curve(d3.curveBasis);
-
-      canvas.call(d3.drag()
-        .container(function() { return this; })
-        .subject(function() {var p = [d3.event.x, d3.event.y]; return [p, p];})
-        .on('start', dragstarted));
-
-      function dragstarted() {
-        if (!scope.data) {
-          return;
-        }
-        var coords = [];
-        var d = d3.event.subject,
-          active = svg.append('path').datum(d),
-          x0 = d3.event.x,
-          y0 = d3.event.y;
-
-        d3.event.on('drag', function() {
-          var x1 = d3.event.x;
-          var y1 = d3.event.y;
-          moveMouse([x1, y1]);
-          coords.push([scales.x.invert(x1), scales.y.invert(y1)]);
-          var dx = x1 - x0;
-          var dy = y1 - y0;
-
-          if (dx * dx + dy * dy > 100) d.push([x0 = x1, y0 = y1]);
-          else d[d.length - 1] = [x1, y1];
-          active.attr('d', dragline);
-          active.attr("stroke", "black");
-        });
-
-        d3.event.on('end', function() {
-          var hits = [];
-          scope.data.forEach(function(d) {
-            var point = [d.x, d.y];
-            if (pointInPolygon(point, coords)) {
-              hits.push(d);
-            }
-          });
-          scope.selectEllipse(
-            hits,
-            coords
-          );
-        });
-      }
-
-      scope.$watchCollection('selectedGroups', function(selectedGroups) {
-        if (!selectedGroups) {
-            return;
-        }
-
-        var dragline = d3.line()
-          .curve(d3.curveBasis);
-        lassos.selectAll('path.line').remove();
-        var lines = lassos.selectAll('path')
-          .data(selectedGroups, d => d.idx);
-
-        lines.enter().append('path')
-          .datum(d => d.coords)
-          .attr('class', 'line')
-          .attr('stroke', "black")
-          .attr('d', dragline);
-        lines.exit().remove();
-
-        /*
-        var ellipses = lassos.selectAll('ellipse')
-          .data(selectedGroups, d => d.idx);
-
-        ellipses.enter()
-          .append('ellipse')
-          .attr('cx', d => d.center.x)
-          .attr('cy', d => d.center.y)
-          .attr('rx', d => d.axes.a)
-          .attr('ry', d => d.axes.b)
-          .attr('fill', 'none')
-          .attr('stroke', 'red')
-          .attr('stroke-width', 4)
-          .attr('transform', d => {
-            return 'rotate(' + d.angle * 180 / Math.PI + ',' + d.center.x + ',' + d.center.y + ')';
-          });
-        ellipses.exit().remove();
-        */
-      });
 
       canvas.on('mousemove', function() {
         moveMouse(d3.mouse(this));
