@@ -60,7 +60,8 @@ angular.module('controllers', [])
   '$scope',
   '$http',
   '$q',
-  function($scope, $http, $q) {
+  '$window',
+  function($scope, $http, $q, $window) {
     $http.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded";
 
     var quadtree;
@@ -147,6 +148,10 @@ angular.module('controllers', [])
                 units: $scope.putativeUnits
             }),
             headers: {'Content-Type': 'application/json'}
+        }).then(function() {
+            $http.get('/shutdown').then(function() {
+                $window.close()
+            });
         });
     };
 
