@@ -1,4 +1,4 @@
-PORT = 8080
-DATASERVER = "http://localhost:8080"
+PORT = 8111
+DATASERVER = "http://localhost:8111"
 DEBUG = False
 DATADIR = "./data"

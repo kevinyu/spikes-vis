@@ -1,7 +1,7 @@
 <div style="height=40px;">
   <p ng-model="k">Set number of clusters (currently {{ k }})</p>
   <div>
-  <button ng-repeat="i in availableK" ng-click="setK(i)">{{ i }}</button>
+  <button class="btn btn-sm" ng-repeat="i in availableK" ng-click="setK(i)">{{ i }}</button>
   </div>
 </div>
 
@@ -13,19 +13,17 @@
 <div ng-class="{hidden: !waveformsLoaded}">
   <div class="row">
     <div class="col col-md-4">
-      <div class="scatter-plot">
-        <interactive-scatter width="400" height="400" horiz-margin="20" vert-margin="20" data="scatterData"
-          select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
-          xmin="-7.0" xmax="7.0" ymin="-7" ymax="7"></interactive-scatter>
-      </div>
-    </div>
-
-    <div class="col col-md-4">
-      <div class="row" ng-repeat="i in availableK">
-        <div class="col col-md-12"><div class="btn btn-sm">{{ i }}</div>k</div>
-      </div>
       <div class="row">
         <div class="col col-md-12">
+          <div class="scatter-plot">
+            <interactive-scatter width="400" highlighted="highlighted" height="400" horiz-margin="20" vert-margin="20" data="scatterData"
+              select-circle="selectCircle" select-ellipse="selectEllipse" selected-groups="groups"
+              xmin="-7.0" xmax="7.0" ymin="-7" ymax="7"></interactive-scatter>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col col-md-8 col-md-offset-2">
           <waveforms-chart data="currentlySelected" n-samples="32" width="300" height="200"
             horiz-margin="20" vert-margin="10" loaded='waveformsLoaded' limits="limits"
             xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
@@ -33,7 +31,38 @@
       </div>
     </div>
 
+    <div class="col col-md-2">
+      <div class="row">
+        <div class="col col-md-12">
+          <div class="btn-group btn-matrix">
+            <button type="button" class="btn btn-sm btn-default" ng-repeat="i in availableC" ng-class="{hidden: i >= k, 'opacity-button': !!clustersSelected.length && clustersSelected.indexOf(i) === -1}" ng-style="{'background-color': getColor(i)}" ng-mouseover="hoverIn(i)" ng-mouseleave="hoverOut()" ng-click="toggleCluster(i)">{{ i }}</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col col-md-12">
+            <button type="button" class="btn" ng-click="groupIntoUnit()">Combine</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col col-md-12">
+          <waveforms-chart data="waveformsInClusters" n-samples="32" width="300" height="200"
+            horiz-margin="20" vert-margin="10" loaded='waveformsLoaded' limits="limits"
+            xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
+        </div>
+      </div>
+    </div>
+
     <div class="col col-md-4">
+      <div ng-repeat="unit in putativeUnits" class="row">
+        <div style="height: 50px; background-color: gray;" class="btn col col-md-12" ng-mouseover="highlightUnits(unit)" ng-mouseleave="hoverOut()" ng-click="clearUnit($index)">
+          UNIT {{ $index }}: <a ng-repeat="u in unit"> {{u}} </a>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn col col-md-4 col-offset-4" ng-click="saveUnits()">Save</button>
+      </div>
     </div>
   </div>
 
@@ -41,10 +70,4 @@
     <div>
   </div>
 </div>
-<div style="clear: both;">
-  <div style="float: left;" ng-repeat="group in groups">
-    <waveforms-chart ng-click="close(group)" use-canvas="true" data="group.data" n-samples="32" width="300" height="200"
-      horiz-margin="10" vert-margin="10" loaded='waveformsLoaded' closeCallback="group.close" limits="limits"
-      xmin="0" xmax="32" ymin="-250" ymax="160"></waveforms-chart>
-  </div>
-</div>
+

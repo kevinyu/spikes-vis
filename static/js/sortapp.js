@@ -61,6 +61,8 @@ angular.module('controllers', [])
   '$http',
   '$q',
   function($scope, $http, $q) {
+    $http.defaults.headers.post["Content-Type"] = "application/x-www-form-urlencoded";
+
     var quadtree;
     var getSpikesData;
 
@@ -77,10 +79,95 @@ angular.module('controllers', [])
 
     $scope.k = 1;
     $scope.availableK = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30];
+    $scope.availableC = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29];
+
+
+    $scope.clustersSelected = [];
+    $scope.putativeUnits = [];
+    $scope.usedUpUnits = [];
+    $scope.waveformsInClusters = [];
+    $scope.waveformsInUnits = [];
+    $scope.highlighted = [];
+
+    $scope.$watch('putativeUnits', function(units) {
+        $scope.usedUpUnits = [];
+        units.forEach(function(l) {
+            $scope.usedUpUnits = $scope.usedUpUnits.concat(l);
+        });
+    }, true);
+
+    $scope.getColor = function(clust) {
+      return colores_google(clust);
+    };
 
     $scope.setK = function(k) {
         $scope.k = k;
     }
+
+    $scope.hoverIn = function(clust) {
+        $scope.highlightUnits([clust]);
+        //highlight cluster
+    };
+
+    $scope.hoverOut = function() {
+        $scope.unhighlight();
+        //color things regular again
+    };
+
+    $scope.clearUnit = function(i){
+        $scope.putativeUnits.splice(i, 1);
+    };
+
+    $scope.highlightUnits = function(clusters) {
+        $scope.highlighted = clusters;
+        $scope.currentlySelected = $scope.scatterData.filter(function(el) {
+            return $scope.highlighted.indexOf(el.cluster) !== -1;
+        }).slice(0, 500);
+    };
+
+    $scope.unhighlight = function() {
+        $scope.highlighted = [];
+        $scope.currentlySelected = [];
+    };
+
+    $scope.groupIntoUnit = function() {
+        if (!!$scope.clustersSelected.length) {
+            $scope.putativeUnits.push($scope.clustersSelected.slice());
+            $scope.clustersSelected = [];
+            $scope.waveformsInClusters = [];
+        }
+    };
+
+    $scope.saveUnits = function() {
+        // save the untis in putativeUnits, and the current model
+        $http({
+            url: '/save',
+            method: "POST",
+            data: JSON.stringify({
+                units: $scope.putativeUnits
+            }),
+            headers: {'Content-Type': 'application/json'}
+        });
+    };
+
+    $scope.toggleCluster = function(clust) {
+        if ($scope.usedUpUnits.indexOf(clust) === -1) {
+            var idx = $scope.clustersSelected.indexOf(clust);
+            if (idx === -1) {
+                $scope.clustersSelected.push(clust);
+            } else {
+                $scope.clustersSelected.splice(idx, 1);
+            }
+        }
+
+        $scope.waveformsInClusters = $scope.scatterData.filter(function(el) {
+            return $scope.clustersSelected.indexOf(el.cluster) !== -1;
+        });
+    };
+
+    $scope.$watchCollection('clustersSelected', function() {
+        // when we change which clusters are selected
+    });
 
     var waveformData = [];
 
@@ -137,17 +224,22 @@ angular.module('controllers', [])
     }
 
     $scope.$watch('k', function(k) {
+        $scope.clustersSelected = [];
+        $scope.putativeUnits = [];
+        $scope.usedUpUnits = [];
+        $scope.waveformsInClusters = [];
+        $scope.waveformsInUnits = [];
       if (!!$scope.waveformsLoaded) {
           getSpikesData = $http.get(
                 'datasets/spikes/' + $scope.k
             ).then(function(data) {
+              $scope.scatterData = data.data;
               $scope.scatterData.forEach(function(d, i) {
                 d.waveform = waveformData[i].waveform;
                 d.cluster = data.data[i].cluster;
                 quadtree.remove(d);
                 quadtree.add(d);
               });
-              $scope.scatterData = data.data;
 
               // update scope clusters available
             });
@@ -339,6 +431,7 @@ angular.module('charts', [])
     templateUrl: 'static/partials/interactive_scatter.html',
     scope: {
       data: '=',
+      highlighted: '=',
       width: '@',
       height: '@',
       horizMargin: '@',
@@ -391,6 +484,10 @@ angular.module('charts', [])
         };
 
         draw(scope.data);
+      }, true);
+
+      scope.$watch('highlighted', function() {
+        draw(scope.data);
       });
 
       function draw(data) {
@@ -401,7 +498,7 @@ angular.module('charts', [])
         circles.enter()
           .append('c')
           .classed('circle', true)
-          .attr('fillStyle', d => colores_google(d.cluster))
+          .attr('fillStyle', d => (!!scope.highlighted.length && scope.highlighted.indexOf(d.cluster) === -1) ? 'gray' : colores_google(d.cluster))
           .attr('size', 1.0)
           .attr('alpha', 0.8)
           .attr('x', d => scales.x(d.x))

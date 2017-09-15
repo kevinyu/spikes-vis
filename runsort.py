@@ -4,7 +4,7 @@ import glob
 import sys
 
 import numpy as np
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 
 import config
 from api import utils
@@ -17,7 +17,11 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["DATASERVER"] = config.DATASERVER
 
 
-def create_server(waveforms_file, tsne_file):
+def create_server(
+        waveforms_file,
+        tsne_file,
+        output_file
+        ):
     waveforms = np.load(waveforms_file)[()]
     xy_data = np.load(tsne_file)[()]
 
@@ -32,11 +36,21 @@ def create_server(waveforms_file, tsne_file):
             "waveform": list(row)
         } for i, row in enumerate(waveforms)])
 
+    @app.route("/save", methods=["POST"])
+    def save_data():
+        data = request.get_json(silent=True)
+        np.save(output_file, {
+            "model": kmeans,
+            "units": data["units"]
+        })
+        return jsonify({'result': 'success'})
+
     @app.route("/datasets/spikes/<int:k>")
     def do_kmeans(k=1):
         if k == 1:
-            labels = np.ones(len(waveforms))
+            labels = np.zeros(len(waveforms))
         else:
+            global kmeans
             kmeans = KMeans(n_clusters=k)
             kmeans.fit(waveforms)
             labels = kmeans.predict(waveforms).astype(np.int64)
@@ -45,12 +59,6 @@ def create_server(waveforms_file, tsne_file):
             for i, ((x, y), label) in enumerate(zip(xy_data, labels))
         ])
 
-    # set kmeans, return labels
-    # save
-    @app.route("/save")
-    def save():
-        # save data and model
-        sys.exit(0)
 
     return app
 
