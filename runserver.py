@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 import os
 import glob
 
@@ -30,7 +30,7 @@ def get_2d_set(category, dataset_name):
     data = utils.load_pkl_or_npy(filename)
 
     cluster_file = utils.get_cluster_file(category, dataset_name)
-    print cluster_file
+    print(cluster_file)
     if cluster_file:
         clusters = utils.load_pkl_or_npy(cluster_file)
     else:

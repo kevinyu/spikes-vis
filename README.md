@@ -33,7 +33,7 @@ For example, `mkdir data/vocalizations/LbY6074__161215_145633`
 
 Within it, add the following two pickle files:
 
-* `2d.pkl`: Containing a numpy array of N x 2 (2d projection for scatter-plot), where N is the number of datapoints
+* `2d.pkl`: Containing a numpy array of N x 2 (2d projection for scatter-plot), where N is the number of datapoints. The dtype must be float64!
 
 * `spectrograms.pkl`: Containing a list of length N, where each element of the list is a 2D array of dimensions F x T where F is the number of frequency channels and T is the number of time steps of the spectrogram
 

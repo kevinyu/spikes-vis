@@ -1,5 +1,5 @@
 # File reading utils
-import cPickle as pickle
+import pickle
 
 import glob
 import os
@@ -82,7 +82,7 @@ def get_cluster_flie(category, dataset_name):
 
 
 def load_pkl_or_npy(filename):
-    if isinstance(filename, basestring):
+    if isinstance(filename, str):
         filenames = [filename]
     else:
         filenames = filename
