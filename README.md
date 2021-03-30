@@ -36,6 +36,8 @@ Make sure the virtual environment is active when running the server
 
 ```
 python runserver.py --help
+```
+```
 Usage: runserver.py [OPTIONS]
 
 Options:
