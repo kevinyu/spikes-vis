@@ -97,8 +97,6 @@ angular.module('controllers', [])
     var quadtree;
     var getSpikesData;
 
-    $scope.datasetChoices = []      // Datasets available for visualization (can switch between them)
-    $scope.selectedDatasetIdx = 0;
     $scope.scatterData = [];        // List of points to visualize in scatter plot
     $scope.waveformsLoaded = false;
     $scope.limits = {
@@ -108,25 +106,11 @@ angular.module('controllers', [])
       ymin: -10
     };
 
-    // load up the options
-    $http.get('datasets/spikes').then(function(data) {
-      $scope.datasetChoices = data.data;
-      $scope.selectDataset(0);
-    });
-
-    // Change which dataset to visualize by index
-    $scope.selectDataset = function(idx) {
-        $scope.datasetName = $scope.datasetChoices[idx];
-        getScatterData();
-    }
-
     var getScatterData = function() {
       $scope.waveformsLoaded = false;
       $scope.groups = [];
       getSpikesData = $http.get(
-            'datasets/spikes/'
-            + $scope.datasetName
-            + '/2D'
+            'data/scatter'
         ).then(function(data) {
           quadtree.addAll(data.data);
           $scope.scatterData = data.data;
@@ -140,9 +124,7 @@ angular.module('controllers', [])
 
       $q.all([
         getSpikesData,
-        $http.get('datasets/spikes/'
-            + $scope.datasetName
-            + '/waveforms')
+        $http.get('data/waveforms')
       ]).then(function(results) {
         var waveformData = results[1].data;
         // TODO: in the future should make sure that the id's line up properly
@@ -202,6 +184,8 @@ angular.module('controllers', [])
       const i = $scope.groups.indexOf(group);
       $scope.groups.splice(i, 1);
     }
+
+    getScatterData();
   }
 ])
 
@@ -210,38 +194,17 @@ angular.module('controllers', [])
   '$http',
   '$q',
   function($scope, $http, $q) {
-    var loadedConfirmation;         // Promise that will be finished with server data loaded
     var quadtree;
 
     $scope.data = null;             // Currently visualized spectrogram
     $scope.scatterData = [];        // List of points to visualize in scatter plot
     $scope.idx = 0;                 // Currently spectrogram index to visualize
-    $scope.datasetChoices = []      // Datasets available for visualization (can switch between them)
-    $scope.selectedDatasetIdx = 0;
     $scope.loading = false;         // Loading flag (server will be slow when first loading spectrograms files)
     $scope.groups = [];
 
-    // load up the options
-    $http.get('datasets/vocalizations').then(function(data) {
-      $scope.datasetChoices = data.data;
-      $scope.selectDataset(0);
-    });
-
-    // Change which dataset to visualize by index
-    $scope.selectDataset = function(idx) {
-        $scope.datasetName = $scope.datasetChoices[idx];
-        $scope.loading = true;
-        loadedConfirmation = $http.get('datasets/vocalizations/' + $scope.datasetName + '/spectrograms/load');
-        loadedConfirmation.then(() => $scope.loading = false);
-        getScatterData();
-    }
-
     // Load a single spectrogram's data
     var getSpecData = function() {
-      $http.get('datasets/vocalizations/'
-            + $scope.datasetName
-            + '/spectrograms/'
-            + $scope.idx)
+      $http.get('data/spectrograms/' + $scope.idx)
         .then(function(data) {
           $scope.data = data.data.spectrogram;
           return data;
@@ -250,20 +213,15 @@ angular.module('controllers', [])
 
     // Load scatter plot 2d data for current dataset
     var getScatterData = function() {
-      loadedConfirmation.then(function() {
-        $http.get('datasets/vocalizations/'
-              + $scope.datasetName 
-              + '/2D'
-        ).then(function(data) {
-          // TODO fillin max and min
-          quadtree = d3.quadtree()
-            .extent([[-30, 30], [-30, 30]])
-            .x(d => d.x)
-            .y(d => d.y);
-          quadtree.addAll(data.data);
-          $scope.scatterData = data.data;
-          return data;
-        });
+      $http.get('data/scatter').then(function(data) {
+        // TODO fillin max and min
+        quadtree = d3.quadtree()
+          .extent([[-30, 30], [-30, 30]])
+          .x(d => d.x)
+          .y(d => d.y);
+        quadtree.addAll(data.data);
+        $scope.scatterData = data.data;
+        return data;
       });
     };
 
@@ -312,6 +270,8 @@ angular.module('controllers', [])
       }];
       $scope.$apply();
     };
+
+    getScatterData();
   }
 ]);
 
@@ -391,6 +351,7 @@ angular.module('charts', [])
       loaded: '=',
       useCanvas: '@',
       closeable: '@',
+      axisBuffer: '@',
       limits: '='
     },
     link: function(scope, element, attrs) {
@@ -425,7 +386,7 @@ angular.module('charts', [])
       var yAxis = d3.axisLeft(scales.y);
       svg.append("g")
         .attr("class", "yaxis")
-        .attr("transform", "translate(" + 50 + ", 0)")
+        .attr("transform", "translate(" + scope.axisBuffer + ", 0)")
         .call(yAxis);
 
       var line = d3.line()
@@ -433,7 +394,7 @@ angular.module('charts', [])
         .y(d => scales.y(d))
         .curve(d3.curveBasis);
 
-      var plotGroup = svg.append('g');
+      var plotGroup = svg.append('g').attr("transform", "translate(" + scope.axisBuffer + ", 0)");
 
       scope.$watchCollection(function() {
         return scope.data;
@@ -458,7 +419,6 @@ angular.module('charts', [])
         svg.select(".yaxis")
           .call(yAxis);  
 
-
         if (!scope.useCanvas) {
           var lines = plotGroup.selectAll('path')
             .data(data, d => d.idx)
@@ -474,12 +434,14 @@ angular.module('charts', [])
             var waveform = lineData.waveform;
             context.beginPath();
             context.globalAlpha = 0.1;
-            context.moveTo(scales.x(0), scales.y(waveform[0]));
+            context.moveTo(scales.x(0) + scope.axisBuffer, scales.y(waveform[0]));
             waveform.forEach((datapoint, i) => {
               if (i > 0) {
-                context.lineTo(scales.x(i), scales.y(waveform[i]));
+                // Why do i need to hard code 50 here instead of use scope.axisBuffer?
+                context.lineTo(scales.x(i) + 50, scales.y(waveform[i]));
               }
             });
+
             context.lineWidth = 1;
             context.strokeStyle = 'black';
             context.stroke();
@@ -559,7 +521,7 @@ angular.module('charts', [])
           .append('c')
           .classed('circle', true)
           .attr('fillStyle', d => colores_google(d.cluster))
-          .attr('size', 1.0)
+          .attr('size', 2.0)
           .attr('alpha', 0.8)
           .attr('x', d => scales.x(d.x))
           .attr('y', d => scales.y(d.y));
@@ -612,6 +574,7 @@ angular.module('charts', [])
       /* lasso code */
       var lassoPath = [];
       var lassoing = false;
+      var active = null;
 
       var dragline = d3.line()
         .curve(d3.curveBasis);
@@ -621,15 +584,26 @@ angular.module('charts', [])
         .subject(function() {var p = [d3.event.x, d3.event.y]; return [p, p];})
         .on('start', dragstarted));
 
+      canvas.on('click', function() {
+        if (active !== null) {
+          active.remove();
+        }
+      });
+
       function dragstarted() {
         if (!scope.data) {
           return;
         }
+
+        if (active !== null) {
+          active.remove();
+        }
         var coords = [];
         var d = d3.event.subject,
-          active = svg.append('path').datum(d),
           x0 = d3.event.x,
           y0 = d3.event.y;
+
+        active = svg.append('path').datum(d)
 
         d3.event.on('drag', function() {
           var x1 = d3.event.x;

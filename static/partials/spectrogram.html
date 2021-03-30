@@ -1,15 +1,3 @@
-<div class="dataset-dropdown">
-  <div class="btn-group">
-    <button type="button" class="btn btn-primary">{{ datasetName }}</button>
-    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
-      <span class="caret"></span>
-    </button>
-    <ul class="dropdown-menu" role="menu">
-      <li><a ng-click="selectDataset($index)" ng-repeat="dataset in datasetChoices">{{ dataset }}</a></li>
-    </ul>
-  </div>
-</div>
-
 <div ng-class="{hidden: !loading}">
   <img src="static/images/balls.svg"></img>
   <div>Loading spectrogram data...</div>

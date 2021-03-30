@@ -15,36 +15,47 @@ The best way to run this is through a python virtual environment using python's 
 
 * Install python dependencies (after activating the environment) with `pip install -r requirements.txt`
 
+## Preparing data files
+
+Visualizing a dataset of N datapoints with this tool requires the following files:
+
+1. 2D scatter data of shape (N, 2)
+2. ONE OR BOTH OF:
+    a. Spectrogram data in the form of an array with shape (N, X, Y) where (X, Y) are the dimensions of the spectrogram images
+    b. Waveform data in the form of an array with shape (N, Z) where Z is the duration of one waveform in samples
+
+Optionally, you can also include
+
+3. Labels data, a 1D array of shape (N,) where each element is an integer label indicating a classifier label / cluster name for each data point.
+
+Save each data array as a `.npy` file (using `numpy.save(filename, arr)`) and put them somewhere on your file system. You will specify the paths to these files when running the `runserver.py` command below.
+
 ## Running the server
 
 Make sure the virtual environment is active when running the server
 
-* `python runserver.py`
+* ```python runserver.py --help
+Usage: runserver.py [OPTIONS]
+
+Options:
+  --scatter PATH       npy file of (N_SAMPLES, 2) scatter data
+  --spectrograms PATH  npy file of (N_SAMPLES, X, Y) spectrogram data
+  --waveforms PATH     npy file of (N_SAMPLES, WF_SIZE) waveform data
+  --labels PATH        npy file of len=N_SAMPLES integer label data
+  --port INTEGER
+  --debug BOOLEAN
+  --help               Show this message and exit.
+  ```
 
 * Go to browser at `localhost:8080`
 
-## Vocalizations
+Example:
 
-Data directory is `data/vocalizations/`
-
-To visualize a vocalizations dataset (2d projection + spectrograms), create a directory with the name of the dataset you want to visualize in the data directory
-
-For example, `mkdir data/vocalizations/LbY6074__161215_145633`
-
-Within it, add the following two pickle files:
-
-* `2d.pkl`: Containing a numpy array of N x 2 (2d projection for scatter-plot), where N is the number of datapoints. The dtype must be float64!
-
-* `spectrograms.pkl`: Containing a list of length N, where each element of the list is a 2D array of dimensions F x T where F is the number of frequency channels and T is the number of time steps of the spectrogram
-
-* View them at `http://localhost:8080/#!/spectrogram` and select your new dataset from the dropdown
-
-## Spikes (doesnt work yet)
-
-Data directory is `data/spikes/`
-
-Create two pickle files:
-
-* `2d.pkl`: Containing a numpy array of N x 2 (2d projection for scatter-plot)
-
-* `waveforms.pkl`: Containing a numpy array of N x T, where N is the number of data points and T is the length of a waveform
+```
+python runserver.py \
+    --scatter data/scatter.npy \
+    --spectrograms data/spectrograms.npy \
+    --waveforms data/waveforms.npy \
+    --labels data/labels.npy \
+    --port 8080
+```

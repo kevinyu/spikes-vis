@@ -17,6 +17,7 @@ def _listify(d):
 
 
 def listify(data):
+    """Turns 2d spectrogram data into a serializable image"""
     return [_listify(d) for d in data]
 
 

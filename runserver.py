@@ -1,7 +1,9 @@
 import pickle
 import os
 import glob
+import sys
 
+import click
 import numpy as np
 from flask import Flask, render_template, jsonify
 
@@ -14,76 +16,92 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["DATASERVER"] = config.DATASERVER
 
 
+MODES = ["spectrograms", "waveforms"]
+CACHED_DATA = {}
+
+
+def store_data(key, value):
+    CACHED_DATA[key] = value
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-@app.route("/datasets/<category>")
-def get_datasets(category):
-    return jsonify(utils.get_datasets(category))
+@app.route("/data/scatter")
+def get_2d_set():
+    data = CACHED_DATA.get("scatter")
 
+    if data is None:
+        return jsonify({"error": "No data"})
 
-@app.route("/datasets/<category>/<dataset_name>/2D")
-def get_2d_set(category, dataset_name):
-    filename = utils.get_2d_file(category, dataset_name)
-    data = utils.load_pkl_or_npy(filename)
-
-    cluster_file = utils.get_cluster_file(category, dataset_name)
-    print(cluster_file)
-    if cluster_file:
-        clusters = utils.load_pkl_or_npy(cluster_file)
+    if "labels" in CACHED_DATA:
+        labels = CACHED_DATA["labels"]
     else:
-        clusters = np.zeros(len(data))
+        labels = [int(x) for x in range(len(data))]
 
-    return jsonify([
-        {"idx": i, "x": x, "y": y, "cluster": clust}
-        for i, ((x, y), clust) in enumerate(zip(data, clusters))
+    result =  jsonify([
+        {"idx": i, "x": x, "y": y, "cluster": label}
+        for i, ((x, y), label) in enumerate(zip(data, labels))
     ])
 
-
-_cache = {}
-def preload_spectrograms(category, dataset_name):
-    key = (category, dataset_name)
-    if key in _cache:
-        pass
-    else:
-        spec_file = utils.get_spectrogram_file(category, dataset_name)
-        if not os.path.isfile(spec_file):
-            return
-        spec_data = utils.load_pkl_or_npy(spec_file)
-        spec_data = utils.listify(spec_data)
-        _cache[key] = spec_data
-
-    return _cache[key]
+    return result
 
 
-@app.route("/datasets/<category>/<dataset_name>/spectrograms/load")
-def trigger_preload(category, dataset_name):
-    preload_spectrograms(category, dataset_name)
-    return jsonify({"success": True})
+@app.route("/data/spectrograms/<int:idx>")
+def get_spectrogram(idx):
+    dataset = CACHED_DATA.get("spectrograms")
 
-
-@app.route("/datasets/<category>/<dataset_name>/spectrograms/<int:idx>")
-def get_spectrogram(category, dataset_name, idx):
-    dataset = preload_spectrograms(category, dataset_name)
-    if not dataset:
-        return jsonify({})
+    if dataset is None:
+        return jsonify({"error": "No spectrograms loaded"})
     return jsonify({
         "idx": idx,
         "spectrogram": dataset[idx]
     })
 
 
-@app.route("/datasets/<category>/<dataset_name>/waveforms")
-def get_waveforms(category, dataset_name):
-    filename = utils.get_waveforms_file(category, dataset_name)
-    dataset = utils.load_pkl_or_npy(filename)
+@app.route("/data/waveforms")
+def get_waveforms():
+    dataset = CACHED_DATA.get("waveforms")
     return jsonify([{
         "idx": i,
         "waveform": list(row)
     } for i, row in enumerate(dataset)])
+
+
+@click.command()
+@click.option("--scatter", type=click.Path(exists=True), help="npy file of (N_SAMPLES, 2) scatter data")
+@click.option("--spectrograms", required=False, type=click.Path(exists=True), help="npy file of (N_SAMPLES, X, Y) spectrogram data")
+@click.option("--waveforms", required=False, type=click.Path(exists=True), help="npy file of (N_SAMPLES, WF_SIZE) waveform data")
+@click.option("--labels", required=False, type=click.Path(exists=True), help="npy file of len=N_SAMPLES integer label data")
+@click.option("--port", default=config.PORT, type=int)
+@click.option("--debug", default=config.DEBUG, type=bool)
+def runserver(scatter, spectrograms, waveforms, labels, port, debug):
+    if not (waveforms or spectrograms):
+        click.echo("Either --waveforms or --spectrograms file must be specified")
+        sys.exit(1)
+
+    scatter_data = np.load(scatter)[()]
+    if spectrograms:
+        spectrogram_data = np.load(spectrograms)[()]
+    if waveforms:
+        waveform_data = np.load(waveforms)[()]
+    if labels:
+        label_data = np.load(labels)[()]
+    
+    store_data("scatter", scatter_data)
+    if spectrograms:
+        store_data("spectrograms", utils.listify(spectrogram_data))
+    if waveforms:
+        store_data("waveforms", waveform_data)
+    if labels:
+        store_data("labels", [int(x) for x in label_data])
+
+    app.run(host="0.0.0.0", port=port, debug=debug)
     
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=config.PORT, debug=config.DEBUG)
+    # import sys
+    # Read in the scatter data and the visualization data from arguments
+    runserver()
