@@ -34,7 +34,8 @@ Save each data array as a `.npy` file (using `numpy.save(filename, arr)`) and pu
 
 Make sure the virtual environment is active when running the server
 
-* ```python runserver.py --help
+```
+python runserver.py --help
 Usage: runserver.py [OPTIONS]
 
 Options:
@@ -45,11 +46,11 @@ Options:
   --port INTEGER
   --debug BOOLEAN
   --help               Show this message and exit.
-  ```
+```
 
 * Go to browser at `localhost:8080`
 
-Example:
+### Example:
 
 ```
 python runserver.py \
